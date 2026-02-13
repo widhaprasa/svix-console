@@ -177,7 +177,7 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
         }
 
         if (attemptsResult.error) {
-          setError(prev => prev ? `${prev}; ${attemptsResult.error}` : attemptsResult.error);
+          setError(prev => prev ? `${prev}; ${attemptsResult.error}` : attemptsResult.error || 'Unknown error');
         } else {
           setAttempts(attemptsResult.data);
           setAttemptsIterator(attemptsResult.iterator);

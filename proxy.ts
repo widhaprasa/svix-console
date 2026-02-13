@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // This function can be marked `async` if using `await` inside
-export function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   // Check if the request is for the login page or login API
   const isLoginPage = request.nextUrl.pathname === '/login';
   const isLoginAPI = request.nextUrl.pathname === '/api/auth/login';

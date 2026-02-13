@@ -6,7 +6,7 @@ This is a web-based UI for the open source [Svix](https://github.com/svix/svix-w
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 20+ 
 - A Svix account and API token
 
 ### Installation

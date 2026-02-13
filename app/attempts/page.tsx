@@ -1,10 +1,11 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageLayout } from "@/components/page-layout";
 import { EndpointAttemptList } from "@/components/endpoint-attempt-list";
 
-export default function AttemptsPage() {
+function AttemptsContent() {
   const searchParams = useSearchParams();
   const endpointId = searchParams.get('endpointId');
   const appId = searchParams.get('appId');
@@ -28,5 +29,13 @@ export default function AttemptsPage() {
         statusFilter={statusFilter || undefined}
       />
     </PageLayout>
+  );
+}
+
+export default function AttemptsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AttemptsContent />
+    </Suspense>
   );
 }
