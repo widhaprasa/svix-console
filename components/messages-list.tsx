@@ -220,8 +220,7 @@ export function MessagesList({ appId }: MessagesListProps) {
 
   // Handle refresh - reload current date range from URL
   const handleRefresh = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    router.push(`?${params.toString()}`);
+    window.location.reload();
   };
 
   return (

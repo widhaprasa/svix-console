@@ -35,7 +35,12 @@ export async function GET(request: Request, context: MessageDetailRouteContext) 
 
     if (!messageResponse.ok) {
       if (messageResponse.status === 404) {
-        return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+        return NextResponse.json({ 
+          data: null, 
+          attempts: [], 
+          notFound: true,
+          message: 'Message not found' 
+        }, { status: 200 });
       }
       throw new Error(`Svix API error: ${messageResponse.statusText}`);
     }

@@ -29,7 +29,8 @@ type MessageAttempt = {
 };
 
 type MessageDetailResponse = {
-  data: MessageDetail;
+  data: MessageDetail | null;
+  notFound?: boolean;
   error?: string;
 };
 
@@ -53,11 +54,16 @@ async function fetchMessageDetail(msgId: string, appId: string): Promise<Message
     }
 
     const result = await response.json();
+    
+    if (result.notFound) {
+      return { data: null, notFound: true };
+    }
+    
     return { data: result.data };
   } catch (error) {
     console.error('Error fetching message detail:', error);
     return {
-      data: {} as MessageDetail,
+      data: null,
       error: 'Failed to fetch message detail'
     };
   }
@@ -141,17 +147,18 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
   const [attemptsIterator, setAttemptsIterator] = useState<string | null>(null);
   const [hasMoreAttempts, setHasMoreAttempts] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [isPayloadExpanded, setIsPayloadExpanded] = useState(false);
   const [expandedAttemptResponses, setExpandedAttemptResponses] = useState<Set<string>>(new Set());
   const [resendingAttempts, setResendingAttempts] = useState<Set<string>>(new Set());
   const [showResendModal, setShowResendModal] = useState(false);
   const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       setError(null);
+      setNotFound(false);
 
       try {
         // Load both detail and attempts in parallel
@@ -160,7 +167,10 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
           fetchMessageAttempts(msgId, appId)
         ]);
 
-        if (detailResult.error) {
+        if (detailResult.notFound) {
+          setNotFound(true);
+          setMessageDetail(null);
+        } else if (detailResult.error) {
           setError(detailResult.error);
         } else {
           setMessageDetail(detailResult.data);
@@ -186,37 +196,9 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
     }
   }, [msgId, appId]);
 
-  // Refresh all data
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    setError(null);
-
-    try {
-      // Load both detail and attempts in parallel
-      const [detailResult, attemptsResult] = await Promise.all([
-        fetchMessageDetail(msgId, appId),
-        fetchMessageAttempts(msgId, appId)
-      ]);
-
-      if (detailResult.error) {
-        setError(detailResult.error);
-      } else {
-        setMessageDetail(detailResult.data);
-      }
-
-      if (attemptsResult.error) {
-        setError(prev => prev ? `${prev}; ${attemptsResult.error}` : attemptsResult.error);
-      } else {
-        setAttempts(attemptsResult.data);
-        setAttemptsIterator(attemptsResult.iterator);
-        setHasMoreAttempts(!attemptsResult.done && attemptsResult.data.length > 0);
-      }
-    } catch (err) {
-      setError('Failed to refresh message data');
-      console.error('Error refreshing message data:', err);
-    } finally {
-      setIsRefreshing(false);
-    }
+  // Refresh the page
+  const handleRefresh = () => {
+    window.location.reload();
   };
 
   // Load more attempts using iterator
@@ -392,9 +374,9 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
             <Button 
               variant="outline" 
               onClick={handleRefresh}
-              disabled={loading || isRefreshing}
+              disabled={loading}
             >
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              Refresh
             </Button>
             {onClose && (
               <Button variant="outline" onClick={onClose}>
@@ -408,6 +390,34 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
     );
   }
 
+  if (notFound) {
+    return (
+      <div className="w-full space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Message Detail</h2>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+            {onClose && (
+              <Button variant="outline" onClick={onClose}>
+                Close
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <div className="text-gray-500 text-lg">Message ID not found</div>
+          <div className="text-gray-400 text-sm mt-2">The message with ID "{msgId}" could not be found.</div>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="w-full space-y-4">
@@ -417,9 +427,8 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
             <Button 
               variant="outline" 
               onClick={handleRefresh}
-              disabled={isRefreshing}
             >
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              Refresh
             </Button>
             {onClose && (
               <Button variant="outline" onClick={onClose}>
@@ -443,9 +452,9 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
           <Button 
             variant="outline" 
             onClick={handleRefresh}
-            disabled={loading || isRefreshing}
+            disabled={loading}
           >
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            Refresh
           </Button>
           {onClose && (
             <Button variant="outline" onClick={onClose}>

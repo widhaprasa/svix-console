@@ -155,7 +155,6 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
   const [hasMoreAttempts, setHasMoreAttempts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedAttemptResponses, setExpandedAttemptResponses] = useState<Set<string>>(new Set());
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [resendingAttempts, setResendingAttempts] = useState<Set<string>>(new Set());
   const [showResendModal, setShowResendModal] = useState(false);
   const [selectedAttempt, setSelectedAttempt] = useState<{msgId: string, endpointId: string} | null>(null);
@@ -193,34 +192,9 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
     loadAttempts();
   }, [endpointId, appId, statusFilter, startDate.toISOString(), endDate.toISOString()]);
 
-  // Refresh all data
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    setError(null);
-
-    try {
-      const result = await fetchMessageAttempts(
-        endpointId, 
-        appId, 
-        statusFilter, 
-        undefined,
-        startDate,
-        endDate
-      );
-      
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setAttempts(result.data);
-        setAttemptsIterator(result.iterator);
-        setHasMoreAttempts(!result.done && result.data.length > 0);
-      }
-    } catch (err) {
-      setError('Failed to refresh attempts');
-      console.error('Error refreshing attempts:', err);
-    } finally {
-      setIsRefreshing(false);
-    }
+  // Refresh the page
+  const handleRefresh = () => {
+    window.location.reload();
   };
 
   // Load more attempts using iterator
@@ -443,9 +417,9 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
         <Button 
           variant="outline" 
           onClick={handleRefresh}
-          disabled={loading || isRefreshing}
+          disabled={loading}
         >
-          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          Refresh
         </Button>
       </div>
       
