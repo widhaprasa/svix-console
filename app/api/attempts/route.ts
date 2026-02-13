@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const appId = searchParams.get('appId');
     const endpointId = searchParams.get('endpointId');
     const status = searchParams.get('status');
-    const limit = searchParams.get('limit') || '25';
+    const limit = searchParams.get('limit') || '50';
     const iterator = searchParams.get('iterator');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');

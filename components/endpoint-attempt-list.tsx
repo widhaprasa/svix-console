@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { DateTimeRangePicker } from "@/components/date-time-range-picker";
 
 type MessageAttempt = {
@@ -37,7 +38,7 @@ async function fetchMessageAttempts(
 ): Promise<MessageAttemptsResponse> {
   try {
     const params = new URLSearchParams({
-      limit: '25'
+      limit: '50'
     });
     
     if (appId) {
@@ -461,6 +462,13 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
                       <div className="text-xs text-gray-600">
                         {formatTimestamp(attempt.timestamp)}
                       </div>
+                      <Link
+                        href={`/messages/${attempt.msgId}?appId=${appId}`}
+                        className="flex items-center gap-1 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700 hover:text-gray-800 px-2 py-1 rounded border border-gray-200 transition-colors"
+                      >
+                        <span>↗</span>
+                        Message
+                      </Link>
                       <button
                         type="button"
                         onClick={() => showResendConfirmation(attempt.msgId, attempt.endpointId)}
