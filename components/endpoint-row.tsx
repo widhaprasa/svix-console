@@ -51,9 +51,9 @@ export function EndpointRow({ endpoint }: EndpointRowProps) {
           {endpoint.disabled ? 'Disabled' : 'Active'}
         </Badge>
       </TableCell>
-      <TableCell className="text-right">
+      {/* <TableCell className="text-right">
         <EndpointActions endpointId={endpoint.id} applicationId={endpoint.applicationId} />
-      </TableCell>
+      </TableCell> */}
     </TableRow>
   );
 }

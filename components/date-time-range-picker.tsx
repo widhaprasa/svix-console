@@ -221,9 +221,6 @@ export const DateTimeRangePicker: React.FC<DateTimeRangePickerProps> = ({
   React.useEffect(() => {
     if (isOpen) {
       openedRangeRef.current = range;
-    } else {
-      // When popover closes, revert to the original range
-      setRange(openedRangeRef.current);
     }
   }, [isOpen]); // Only depend on isOpen, not range
 

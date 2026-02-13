@@ -46,10 +46,10 @@ export function ApplicationActions({ applicationId, applicationName }: Applicati
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => handleMessage(applicationId)}>
-            Message
+            Messages
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleEndpoint(applicationId)}>
-            Endpoint
+            Endpoints
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

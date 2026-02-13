@@ -97,7 +97,7 @@ export function EndpointsList({ appId, endpoints: initialEndpoints }: EndpointsL
       <div className="w-full space-y-4">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Endpoints - {appId}
+            Endpoints
           </h1>
         </div>
         <div className="text-center py-8">Loading endpoints...</div>
@@ -109,7 +109,7 @@ export function EndpointsList({ appId, endpoints: initialEndpoints }: EndpointsL
     <div className="w-full space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Endpoints - {appId}
+          Endpoints
         </h1>
         <div className="flex items-center space-x-2">
           <input
@@ -126,15 +126,15 @@ export function EndpointsList({ appId, endpoints: initialEndpoints }: EndpointsL
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-2/3">Endpoint URL</TableHead>
-              <TableHead className="w-1/6">Status</TableHead>
-              <TableHead className="w-1/6 text-right">Action</TableHead>
+              <TableHead className="w-4/5">Endpoint URL</TableHead>
+              <TableHead className="w-1/5">Status</TableHead>
+              {/* <TableHead className="w-1/6 text-right">Action</TableHead> */}
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentEndpoints.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={2} className="h-24 text-center">
                   {searchQuery ? 'No endpoints found matching your search.' : 'No endpoints found.'}
                 </TableCell>
               </TableRow>

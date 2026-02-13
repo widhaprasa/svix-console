@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface MessageActionsProps {
   messageId: string;
@@ -15,19 +16,15 @@ interface MessageActionsProps {
 }
 
 export function MessageActions({ messageId, appId }: MessageActionsProps) {
-  const handleView = () => {
-    console.log(`View message: ${messageId}`);
-    // Implement view message logic here
+  const router = useRouter();
+  
+  const handleDetail = () => {
+    router.push(`/messages/${messageId}?appId=${appId}`);
   };
 
-  const handleAttempts = () => {
-    console.log(`View attempts for message: ${messageId}`);
-    // Implement view attempts logic here
-  };
-
-  const handleResend = () => {
-    console.log(`Resend message: ${messageId}`);
-    // Implement resend logic here
+  const handleSearch = () => {
+    console.log(`Search for message: ${messageId}`);
+    // Implement search logic here
   };
 
   const handleDropdownClick = (e: React.MouseEvent) => {
@@ -48,14 +45,11 @@ export function MessageActions({ messageId, appId }: MessageActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleView}>
-            View Payload
+          <DropdownMenuItem onClick={handleDetail}>
+            Detail
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleAttempts}>
-            View Attempts
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleResend}>
-            Resend
+          <DropdownMenuItem onClick={handleSearch}>
+            Search
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
