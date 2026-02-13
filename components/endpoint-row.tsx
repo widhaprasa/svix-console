@@ -3,6 +3,7 @@
 import { TableCell, TableRow } from "@/components/ui/table";
 import { EndpointActions } from "./endpoint-actions";
 import { Badge } from "@/components/ui/badge";
+import { useSearchParams } from "next/navigation";
 
 type Endpoint = {
   id: string;
@@ -23,6 +24,9 @@ interface EndpointRowProps {
 }
 
 export function EndpointRow({ endpoint }: EndpointRowProps) {
+  const searchParams = useSearchParams();
+  const applicationId = searchParams.get('appId');
+  
   const handleRowClick = () => {
     console.log('Endpoint clicked:', endpoint.id);
     // Add endpoint-specific click logic here
@@ -51,9 +55,9 @@ export function EndpointRow({ endpoint }: EndpointRowProps) {
           {endpoint.disabled ? 'Disabled' : 'Active'}
         </Badge>
       </TableCell>
-      {/* <TableCell className="text-right">
-        <EndpointActions endpointId={endpoint.id} applicationId={endpoint.applicationId} />
-      </TableCell> */}
+      <TableCell className="text-right">
+        <EndpointActions endpointId={endpoint.id} applicationId={applicationId || ''} />
+      </TableCell>
     </TableRow>
   );
 }

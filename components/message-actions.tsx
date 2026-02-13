@@ -22,11 +22,6 @@ export function MessageActions({ messageId, appId }: MessageActionsProps) {
     router.push(`/messages/${messageId}?appId=${appId}`);
   };
 
-  const handleSearch = () => {
-    console.log(`Search for message: ${messageId}`);
-    // Implement search logic here
-  };
-
   const handleDropdownClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click when dropdown is clicked
   };
@@ -47,9 +42,6 @@ export function MessageActions({ messageId, appId }: MessageActionsProps) {
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={handleDetail}>
             Detail
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleSearch}>
-            Search
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -1,4 +1,4 @@
-import { EndpointsList } from "@/components/endpoints-list";
+import { EndpointsList } from "@/components/endpoint-list";
 import { PageLayout } from "@/components/page-layout";
 
 interface PageProps {

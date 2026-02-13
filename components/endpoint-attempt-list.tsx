@@ -1,19 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-
-type MessageDetail = {
-  id: string;
-  eventType: string;
-  eventId?: string;
-  payload: any;
-  channels?: string[];
-  tags?: Record<string, string>;
-  timestamp: string;
-  uid?: string;
-};
+import { useSearchParams, useRouter } from "next/navigation";
+import { DateTimeRangePicker } from "@/components/date-time-range-picker";
 
 type MessageAttempt = {
   id: string;
@@ -28,11 +19,6 @@ type MessageAttempt = {
   url: string;
 };
 
-type MessageDetailResponse = {
-  data: MessageDetail;
-  error?: string;
-};
-
 type MessageAttemptsResponse = {
   data: MessageAttempt[];
   iterator: string | null;
@@ -41,40 +27,44 @@ type MessageAttemptsResponse = {
   error?: string;
 };
 
-async function fetchMessageDetail(msgId: string, appId: string): Promise<MessageDetailResponse> {
-  try {
-    const response = await fetch(`/api/messages/${msgId}?appId=${appId}`, {
-      method: 'GET',
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    return { data: result.data };
-  } catch (error) {
-    console.error('Error fetching message detail:', error);
-    return {
-      data: {} as MessageDetail,
-      error: 'Failed to fetch message detail'
-    };
-  }
-}
-
-async function fetchMessageAttempts(msgId: string, appId: string, iterator?: string): Promise<MessageAttemptsResponse> {
+async function fetchMessageAttempts(
+  endpointId?: string, 
+  appId?: string, 
+  status?: string, 
+  iterator?: string,
+  startDate?: Date,
+  endDate?: Date
+): Promise<MessageAttemptsResponse> {
   try {
     const params = new URLSearchParams({
-      appId,
-      limit: '10'
+      limit: '25'
     });
+    
+    if (appId) {
+      params.append('appId', appId);
+    }
+    
+    if (endpointId) {
+      params.append('endpointId', endpointId);
+    }
+    
+    if (status) {
+      params.append('status', status);
+    }
     
     if (iterator) {
       params.append('iterator', iterator);
     }
+    
+    if (startDate) {
+      params.append('startDate', startDate.toISOString());
+    }
+    
+    if (endDate) {
+      params.append('endDate', endDate.toISOString());
+    }
 
-    const response = await fetch(`/api/messages/${msgId}/attempts?${params.toString()}`, {
+    const response = await fetch(`/api/attempts?${params.toString()}`, {
       method: 'GET',
       cache: 'no-store',
     });
@@ -102,7 +92,7 @@ async function fetchMessageAttempts(msgId: string, appId: string, iterator?: str
   }
 }
 
-async function resendMessage(msgId: string, appId: string, endpointId: string): Promise<{success: boolean, error?: string}> {
+async function resendAttempt(msgId: string, appId: string, endpointId: string): Promise<{success: boolean, error?: string}> {
   try {
     const response = await fetch(`/api/messages/${msgId}/resend`, {
       method: 'POST',
@@ -127,64 +117,81 @@ async function resendMessage(msgId: string, appId: string, endpointId: string): 
   }
 }
 
-interface MessageDetailProps {
-  msgId: string;
+interface EndpointAttemptListProps {
+  endpointId: string;
   appId: string;
-  onClose?: () => void;
+  statusFilter?: string;
 }
 
-export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
-  const [messageDetail, setMessageDetail] = useState<MessageDetail | null>(null);
+export function EndpointAttemptList({ endpointId, appId, statusFilter }: EndpointAttemptListProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  // Get dates from URL params or use defaults - memoized to prevent infinite loops
+  const startDate = useMemo(() => {
+    const paramStart = searchParams.get('startDate');
+    if (paramStart) {
+      return new Date(paramStart);
+    }
+    // Create default start date (15 minutes ago) only once
+    const date = new Date();
+    date.setMinutes(date.getMinutes() - 15);
+    return date;
+  }, [searchParams]);
+  
+  const endDate = useMemo(() => {
+    const paramEnd = searchParams.get('endDate');
+    if (paramEnd) {
+      return new Date(paramEnd);
+    }
+    // Create default end date (now) only once
+    return new Date();
+  }, [searchParams]);
+  
   const [attempts, setAttempts] = useState<MessageAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [attemptsLoading, setAttemptsLoading] = useState(false);
   const [attemptsIterator, setAttemptsIterator] = useState<string | null>(null);
   const [hasMoreAttempts, setHasMoreAttempts] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isPayloadExpanded, setIsPayloadExpanded] = useState(false);
   const [expandedAttemptResponses, setExpandedAttemptResponses] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [resendingAttempts, setResendingAttempts] = useState<Set<string>>(new Set());
   const [showResendModal, setShowResendModal] = useState(false);
-  const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedAttempt, setSelectedAttempt] = useState<{msgId: string, endpointId: string} | null>(null);
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadAttempts = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        // Load both detail and attempts in parallel
-        const [detailResult, attemptsResult] = await Promise.all([
-          fetchMessageDetail(msgId, appId),
-          fetchMessageAttempts(msgId, appId)
-        ]);
-
-        if (detailResult.error) {
-          setError(detailResult.error);
+        const result = await fetchMessageAttempts(
+          endpointId, 
+          appId, 
+          statusFilter, 
+          undefined,
+          startDate,
+          endDate
+        );
+        
+        if (result.error) {
+          setError(result.error);
         } else {
-          setMessageDetail(detailResult.data);
-        }
-
-        if (attemptsResult.error) {
-          setError(prev => prev ? `${prev}; ${attemptsResult.error}` : attemptsResult.error);
-        } else {
-          setAttempts(attemptsResult.data);
-          setAttemptsIterator(attemptsResult.iterator);
-          setHasMoreAttempts(!attemptsResult.done && attemptsResult.data.length > 0);
+          setAttempts(result.data);
+          setAttemptsIterator(result.iterator);
+          setHasMoreAttempts(!result.done && result.data.length > 0);
         }
       } catch (err) {
-        setError('Failed to load message data');
-        console.error('Error loading message data:', err);
+        setError('Failed to load attempts');
+        console.error('Error loading attempts:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    if (msgId && appId) {
-      loadData();
-    }
-  }, [msgId, appId]);
+    loadAttempts();
+  }, [endpointId, appId, statusFilter, startDate.toISOString(), endDate.toISOString()]);
 
   // Refresh all data
   const handleRefresh = async () => {
@@ -192,28 +199,25 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
     setError(null);
 
     try {
-      // Load both detail and attempts in parallel
-      const [detailResult, attemptsResult] = await Promise.all([
-        fetchMessageDetail(msgId, appId),
-        fetchMessageAttempts(msgId, appId)
-      ]);
-
-      if (detailResult.error) {
-        setError(detailResult.error);
+      const result = await fetchMessageAttempts(
+        endpointId, 
+        appId, 
+        statusFilter, 
+        undefined,
+        startDate,
+        endDate
+      );
+      
+      if (result.error) {
+        setError(result.error);
       } else {
-        setMessageDetail(detailResult.data);
-      }
-
-      if (attemptsResult.error) {
-        setError(prev => prev ? `${prev}; ${attemptsResult.error}` : attemptsResult.error);
-      } else {
-        setAttempts(attemptsResult.data);
-        setAttemptsIterator(attemptsResult.iterator);
-        setHasMoreAttempts(!attemptsResult.done && attemptsResult.data.length > 0);
+        setAttempts(result.data);
+        setAttemptsIterator(result.iterator);
+        setHasMoreAttempts(!result.done && result.data.length > 0);
       }
     } catch (err) {
-      setError('Failed to refresh message data');
-      console.error('Error refreshing message data:', err);
+      setError('Failed to refresh attempts');
+      console.error('Error refreshing attempts:', err);
     } finally {
       setIsRefreshing(false);
     }
@@ -226,7 +230,14 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
     setAttemptsLoading(true);
     
     try {
-      const result = await fetchMessageAttempts(msgId, appId, attemptsIterator);
+      const result = await fetchMessageAttempts(
+        endpointId, 
+        appId, 
+        statusFilter, 
+        attemptsIterator,
+        startDate,
+        endDate
+      );
       
       if (result.error) {
         setError(result.error);
@@ -244,17 +255,46 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
     }
   };
 
-  const handleResend = async (endpointId: string) => {
-    setResendingAttempts(prev => new Set([...prev, endpointId]));
+  // Update URL with new dates and reload
+  const updateUrlAndReload = (newStartDate: Date, newEndDate: Date) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('startDate', newStartDate.toISOString());
+    params.set('endDate', newEndDate.toISOString());
+    
+    // Keep the existing parameters
+    if (appId) params.set('appId', appId);
+    if (endpointId) params.set('endpointId', endpointId);
+    if (statusFilter) params.set('status', statusFilter);
+    
+    // Navigate to the new URL with replace to avoid adding to history
+    router.replace(`?${params.toString()}`);
+  };
+
+  // Handle date changes - update URL to trigger reload
+  const handleDateTimeRangeUpdate = (values: { range: { from: Date | undefined; to: Date | undefined } }) => {
+    if (values.range.from && values.range.to) {
+      updateUrlAndReload(values.range.from, values.range.to);
+    }
+  };
+
+  const handleResend = async (msgId: string, endpointId: string) => {
+    setResendingAttempts(prev => new Set([...prev, `${msgId}-${endpointId}`]));
     
     try {
-      const result = await resendMessage(msgId, appId, endpointId);
+      const result = await resendAttempt(msgId, appId, endpointId);
       
       if (result.success) {
         setShowResendModal(false);
-        setSelectedEndpointId(null);
+        setSelectedAttempt(null);
         // Refresh the attempts to show the new attempt
-        const attemptsResult = await fetchMessageAttempts(msgId, appId);
+        const attemptsResult = await fetchMessageAttempts(
+          endpointId, 
+          appId, 
+          statusFilter, 
+          undefined,
+          startDate,
+          endDate
+        );
         if (!attemptsResult.error) {
           setAttempts(attemptsResult.data);
           setAttemptsIterator(attemptsResult.iterator);
@@ -269,14 +309,14 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
     } finally {
       setResendingAttempts(prev => {
         const newSet = new Set(prev);
-        newSet.delete(endpointId);
+        newSet.delete(`${msgId}-${endpointId}`);
         return newSet;
       });
     }
   };
 
-  const showResendConfirmation = (endpointId: string) => {
-    setSelectedEndpointId(endpointId);
+  const showResendConfirmation = (msgId: string, endpointId: string) => {
+    setSelectedAttempt({ msgId, endpointId });
     setShowResendModal(true);
   };
 
@@ -292,35 +332,25 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
     });
   };
 
-  const togglePayloadExpansion = () => {
-    setIsPayloadExpanded(prev => !prev);
-  };
-
   const formatPayload = (payload: any) => {
     try {
-      // If payload is a string, try to parse it as JSON first
       if (typeof payload === 'string') {
         try {
-          // Try to parse the string directly as JSON
           const parsed = JSON.parse(payload);
           return JSON.stringify(parsed, null, 2);
         } catch {
-          // If it's an escaped string like "{ \"success\": true }", try double parsing
           if (payload.startsWith('"') && payload.endsWith('"')) {
             try {
               const unescaped = JSON.parse(payload);
               const parsed = JSON.parse(unescaped);
               return JSON.stringify(parsed, null, 2);
             } catch {
-              // Return the unescaped string if inner parsing fails
               return JSON.parse(payload);
             }
           }
-          // Return original string if not JSON
           return payload;
         }
       }
-      // For objects/arrays, stringify normally
       return JSON.stringify(payload, null, 2);
     } catch (error) {
       return String(payload);
@@ -342,6 +372,7 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
         return typeof triggerType === 'string' ? triggerType : 'Unknown';
     }
   };
+
   const getStatusCodeColor = (statusCode: number) => {
     if (statusCode >= 200 && statusCode < 300) return 'text-green-600 bg-green-50 border-green-200';
     if (statusCode >= 300 && statusCode < 400) return 'text-blue-600 bg-blue-50 border-blue-200';
@@ -375,7 +406,6 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
           color: 'text-yellow-600 bg-yellow-50 border-yellow-200'
         };
       default:
-        // Fallback for string statuses or unknown numeric codes
         const statusText = typeof status === 'string' ? status : 'Unknown';
         return {
           text: statusText,
@@ -383,54 +413,23 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
         };
     }
   };
+
+  const getPageTitle = () => {
+    if (statusFilter === 'success') return 'Success Attempts';
+    if (statusFilter === 'failed') return 'Failed Attempts';
+    return 'All Attempts';
+  };
+
   if (loading) {
     return (
-      <div className="w-full space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Message Detail</h2>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleRefresh}
-              disabled={loading || isRefreshing}
-            >
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
-            {onClose && (
-              <Button variant="outline" onClick={onClose}>
-                Close
-              </Button>
-            )}
-          </div>
-        </div>
-        <div className="text-center py-8">Loading message details...</div>
-      </div>
+      <div className="text-center py-8">Loading attempts...</div>
     );
   }
 
   if (error) {
     return (
-      <div className="w-full space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Message Detail</h2>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
-            {onClose && (
-              <Button variant="outline" onClick={onClose}>
-                Close
-              </Button>
-            )}
-          </div>
-        </div>
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-red-600 text-sm">{error}</p>
-        </div>
+      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+        <p className="text-red-600 text-sm">{error}</p>
       </div>
     );
   }
@@ -438,99 +437,27 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
   return (
     <div className="w-full space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Message Detail</h2>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleRefresh}
-            disabled={loading || isRefreshing}
-          >
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
-          {onClose && (
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          )}
-        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {getPageTitle()} ({attempts.length})
+        </h1>
+        <Button 
+          variant="outline" 
+          onClick={handleRefresh}
+          disabled={loading || isRefreshing}
+        >
+          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+        </Button>
       </div>
+      
+      <DateTimeRangePicker
+        onUpdate={handleDateTimeRangeUpdate}
+        initialDateFrom={startDate}
+        initialDateTo={endDate}
+      />
 
-      {/* Message Detail Section */}
-      {messageDetail && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Message Information</h3>
-          <div className="bg-gray-50 p-4 rounded-md space-y-3">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="font-medium">Message Id:</span>
-                <p className="text-sm font-mono">{messageDetail.uid || messageDetail.id}</p>
-              </div>
-              <div>
-                <span className="font-medium">Event Id:</span>
-                <p className="text-sm font-mono">{messageDetail.eventId || messageDetail.id}</p>
-              </div>
-              <div>
-                <span className="font-medium">Event Type:</span>
-                <p className="text-sm">{messageDetail.eventType}</p>
-              </div>
-              <div>
-                <span className="font-medium">Time:</span>
-                <p className="text-sm">{formatTimestamp(messageDetail.timestamp)}</p>
-              </div>
-            </div>
-            
-            {messageDetail.channels && messageDetail.channels.length > 0 && (
-              <div>
-                <span className="font-medium">Channels:</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {messageDetail.channels.map((channel, index) => (
-                    <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {channel}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {messageDetail.tags && Object.keys(messageDetail.tags).length > 0 && (
-              <div>
-                <span className="font-medium">Tags:</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {Object.entries(messageDetail.tags).map(([key, value]) => (
-                    <span key={key} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                      {key}: {value}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Payload:</span>
-                <button
-                  onClick={togglePayloadExpansion}
-                  className="flex items-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 px-2 py-1 rounded border border-blue-200 transition-colors"
-                >
-                  <span>{isPayloadExpanded ? '▼' : '▶'}</span>
-                  {isPayloadExpanded ? 'Hide' : 'Show'} Payload
-                </button>
-              </div>
-              {isPayloadExpanded && (
-                <pre className="text-xs bg-white p-3 rounded-md overflow-x-auto border mt-2">
-                  <code>{formatPayload(messageDetail.payload)}</code>
-                </pre>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Attempts Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">Delivery Attempts ({attempts.length})</h3>
         {attempts.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">
+          <div className="text-center py-8 text-gray-500">
             No delivery attempts found
           </div>
         ) : (
@@ -562,12 +489,12 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
                       </div>
                       <button
                         type="button"
-                        onClick={() => showResendConfirmation(attempt.endpointId)}
-                        disabled={resendingAttempts.has(attempt.endpointId)}
+                        onClick={() => showResendConfirmation(attempt.msgId, attempt.endpointId)}
+                        disabled={resendingAttempts.has(`${attempt.msgId}-${attempt.endpointId}`)}
                         className="flex items-center gap-1 text-xs bg-violet-50 hover:bg-violet-100 text-violet-700 hover:text-violet-800 px-2 py-1 rounded border border-violet-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span>↻</span>
-                        {resendingAttempts.has(attempt.endpointId) ? 'Resending...' : 'Resend'}
+                        {resendingAttempts.has(`${attempt.msgId}-${attempt.endpointId}`) ? 'Resending...' : 'Resend'}
                       </button>
                       {attempt.response && (
                         <button
@@ -610,12 +537,12 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
       </div>
 
       {/* Resend Confirmation Modal */}
-      {showResendModal && selectedEndpointId && (
+      {showResendModal && selectedAttempt && (
         <div 
           className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50"
           onClick={() => {
             setShowResendModal(false);
-            setSelectedEndpointId(null);
+            setSelectedAttempt(null);
           }}
         >
           <div 
@@ -631,17 +558,17 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
                 variant="outline"
                 onClick={() => {
                   setShowResendModal(false);
-                  setSelectedEndpointId(null);
+                  setSelectedAttempt(null);
                 }}
-                disabled={selectedEndpointId ? resendingAttempts.has(selectedEndpointId) : false}
+                disabled={selectedAttempt ? resendingAttempts.has(`${selectedAttempt.msgId}-${selectedAttempt.endpointId}`) : false}
               >
                 Cancel
               </Button>
               <Button
-                onClick={() => selectedEndpointId && handleResend(selectedEndpointId)}
-                disabled={selectedEndpointId ? resendingAttempts.has(selectedEndpointId) : false}
+                onClick={() => selectedAttempt && handleResend(selectedAttempt.msgId, selectedAttempt.endpointId)}
+                disabled={selectedAttempt ? resendingAttempts.has(`${selectedAttempt.msgId}-${selectedAttempt.endpointId}`) : false}
               >
-                {selectedEndpointId && resendingAttempts.has(selectedEndpointId) ? 'Resending...' : 'Resend Message'}
+                {selectedAttempt && resendingAttempts.has(`${selectedAttempt.msgId}-${selectedAttempt.endpointId}`) ? 'Resending...' : 'Resend Message'}
               </Button>
             </div>
           </div>

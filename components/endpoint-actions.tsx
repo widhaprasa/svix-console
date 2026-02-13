@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface EndpointActionsProps {
   endpointId: string;
@@ -15,24 +16,18 @@ interface EndpointActionsProps {
 }
 
 export function EndpointActions({ endpointId, applicationId }: EndpointActionsProps) {
-  const handleEdit = () => {
-    console.log(`Edit endpoint: ${endpointId}`);
-    // Implement edit logic here
+  const router = useRouter();
+  
+  const handleAttempts = () => {
+    router.push(`/attempts?endpointId=${endpointId}&appId=${applicationId}`);
   };
 
-  const handleTest = () => {
-    console.log(`Test endpoint: ${endpointId}`);
-    // Implement test webhook logic here
+  const handleSuccessAttempts = () => {
+    router.push(`/attempts?endpointId=${endpointId}&appId=${applicationId}&status=success`);
   };
 
-  const handleDisable = () => {
-    console.log(`Disable endpoint: ${endpointId}`);
-    // Implement disable logic here
-  };
-
-  const handleDelete = () => {
-    console.log(`Delete endpoint: ${endpointId}`);
-    // Implement delete logic here
+  const handleFailedAttempts = () => {
+    router.push(`/attempts?endpointId=${endpointId}&appId=${applicationId}&status=failed`);
   };
 
   const handleDropdownClick = (e: React.MouseEvent) => {
@@ -53,17 +48,14 @@ export function EndpointActions({ endpointId, applicationId }: EndpointActionsPr
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleEdit}>
-            Edit
+          <DropdownMenuItem onClick={handleAttempts}>
+            Attempts
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleTest}>
-            Test
+          <DropdownMenuItem onClick={handleSuccessAttempts}>
+            Success Attempts
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleDisable}>
-            Disable
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleDelete} className="text-red-600">
-            Delete
+          <DropdownMenuItem onClick={handleFailedAttempts}>
+            Failed Attempts
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

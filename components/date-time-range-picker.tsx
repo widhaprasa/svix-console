@@ -360,7 +360,6 @@ export const DateTimeRangePicker: React.FC<DateTimeRangePickerProps> = ({
           <Button
             onClick={() => {
               setIsOpen(false);
-              console.log("Opened Range:", openedRangeRef.current, "Current Range:", range);
               if (!areRangesEqual(range, openedRangeRef.current)) {
                 onUpdate?.({ range });
               }
