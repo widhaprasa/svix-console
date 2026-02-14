@@ -753,7 +753,7 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
           onClick={() => setShowBulkResendModal(false)}
         >
           <div 
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border"
+            className="bg-white rounded-lg p-6 min-w-[600px] shadow-xl border"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold mb-4">Confirm Bulk Resend</h3>

@@ -294,19 +294,19 @@ export function EndpointDetail({ endpointId, appId, onClose }: EndpointDetailPro
             <Button
               onClick={() => window.location.href = `/attempts?endpointId=${endpointId}&appId=${appId}`}
             >
-              View All Attempts
+              All Attempts
             </Button>
             <Button
               variant="outline"
               onClick={() => window.location.href = `/attempts?endpointId=${endpointId}&appId=${appId}&status=success`}
             >
-              View Success Attempts
+              Success Attempts
             </Button>
             <Button
               variant="outline"
               onClick={() => window.location.href = `/attempts?endpointId=${endpointId}&appId=${appId}&status=failed`}
             >
-              View Failed Attempts
+              Failed Attempts
             </Button>
           </div>
         </div>
