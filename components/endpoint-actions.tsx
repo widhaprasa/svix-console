@@ -18,7 +18,7 @@ interface EndpointActionsProps {
 export function EndpointActions({ endpointId, applicationId }: EndpointActionsProps) {
   const router = useRouter();
   
-  const handleAttempts = () => {
+  const handleAllAttempts = () => {
     router.push(`/attempts?endpointId=${endpointId}&appId=${applicationId}`);
   };
 
@@ -52,8 +52,8 @@ export function EndpointActions({ endpointId, applicationId }: EndpointActionsPr
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleAttempts}>
-            Attempts
+          <DropdownMenuItem onClick={handleAllAttempts}>
+            All Attempts
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleSuccessAttempts}>
             Success Attempts

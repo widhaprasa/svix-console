@@ -28,6 +28,18 @@ type MessageAttemptsResponse = {
   error?: string;
 };
 
+type EndpointStats = {
+  success: number;
+  pending: number;
+  fail: number;
+  sending: number;
+};
+
+type StatsResponse = {
+  data: EndpointStats | null;
+  error?: string;
+};
+
 async function fetchMessageAttempts(
   endpointId?: string, 
   appId?: string, 
@@ -93,6 +105,40 @@ async function fetchMessageAttempts(
   }
 }
 
+async function fetchEndpointStats(appId: string, endpointId: string, startDate?: Date, endDate?: Date): Promise<StatsResponse> {
+  try {
+    const params = new URLSearchParams({
+      appId
+    });
+
+    if (startDate) {
+      params.append('startDate', startDate.toISOString());
+    }
+    
+    if (endDate) {
+      params.append('endDate', endDate.toISOString());
+    }
+
+    const response = await fetch(`/api/endpoints/${endpointId}/stats?${params.toString()}`, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return { data: result.data };
+  } catch (error) {
+    console.error('Error fetching endpoint stats:', error);
+    return {
+      data: null,
+      error: 'Failed to fetch endpoint stats'
+    };
+  }
+}
+
 async function resendAttempt(msgId: string, appId: string, endpointId: string): Promise<{success: boolean, error?: string}> {
   try {
     const response = await fetch(`/api/messages/${msgId}/resend`, {
@@ -113,6 +159,34 @@ async function resendAttempt(msgId: string, appId: string, endpointId: string): 
     return {
       success: false,
       error: 'Failed to resend message'
+    };
+  }
+}
+
+async function bulkResendFailedAttempts(appId: string, endpointId: string, startDate: Date, endDate: Date): Promise<{success: boolean, error?: string}> {
+  try {
+    const response = await fetch(`/api/endpoints/${endpointId}/bulk-resend`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        appId, 
+        since: startDate.toISOString(), 
+        until: endDate.toISOString() 
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.statusText}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error bulk resending failed attempts:', error);
+    return {
+      success: false,
+      error: 'Failed to bulk resend failed attempts'
     };
   }
 }
@@ -149,23 +223,41 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
   }, [searchParams]);
   
   const [attempts, setAttempts] = useState<MessageAttempt[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [attemptsLoading, setAttemptsLoading] = useState(false);
   const [attemptsIterator, setAttemptsIterator] = useState<string | null>(null);
   const [hasMoreAttempts, setHasMoreAttempts] = useState(false);
+  const [stats, setStats] = useState<EndpointStats | null>(null);
+  
+  const [loading, setLoading] = useState(true);
+  const [attemptsLoading, setAttemptsLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(true);
+  
   const [error, setError] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  
   const [expandedAttemptResponses, setExpandedAttemptResponses] = useState<Set<string>>(new Set());
-  const [resendingAttempts, setResendingAttempts] = useState<Set<string>>(new Set());
+  
   const [showResendModal, setShowResendModal] = useState(false);
   const [selectedAttempt, setSelectedAttempt] = useState<{msgId: string, endpointId: string} | null>(null);
+  const [showBulkResendModal, setShowBulkResendModal] = useState(false);
+  
+  const [resendingAttempts, setResendingAttempts] = useState<Set<string>>(new Set());
+  const [bulkResending, setBulkResending] = useState(false);
 
   useEffect(() => {
-    const loadAttempts = async () => {
+    const loadData = async () => {
       setLoading(true);
       setError(null);
 
+      const shouldLoadStats = !statusFilter || (statusFilter !== 'success' && statusFilter !== 'failed');
+      
+      if (shouldLoadStats) {
+        setStatsLoading(true);
+        setStatsError(null);
+      }
+
       try {
-        const result = await fetchMessageAttempts(
+        // Always load attempts
+        const attemptsResult = await fetchMessageAttempts(
           endpointId, 
           appId, 
           statusFilter, 
@@ -174,22 +266,36 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
           endDate
         );
         
-        if (result.error) {
-          setError(result.error);
+        if (attemptsResult.error) {
+          setError(attemptsResult.error);
         } else {
-          setAttempts(result.data);
-          setAttemptsIterator(result.iterator);
-          setHasMoreAttempts(!result.done && result.data.length > 0);
+          setAttempts(attemptsResult.data);
+          setAttemptsIterator(attemptsResult.iterator);
+          setHasMoreAttempts(!attemptsResult.done && attemptsResult.data.length > 0);
         }
+
+        // Load stats only if needed
+        if (shouldLoadStats) {
+          const statsResult = await fetchEndpointStats(appId, endpointId, startDate, endDate);
+          if (statsResult.error) {
+            setStatsError(statsResult.error);
+          } else {
+            setStats(statsResult.data);
+          }
+        }
+        
       } catch (err) {
         setError('Failed to load attempts');
         console.error('Error loading attempts:', err);
       } finally {
         setLoading(false);
+        if (shouldLoadStats) {
+          setStatsLoading(false);
+        }
       }
     };
 
-    loadAttempts();
+    loadData();
   }, [endpointId, appId, statusFilter, startDate.toISOString(), endDate.toISOString()]);
 
   // Refresh the page
@@ -292,6 +398,43 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
   const showResendConfirmation = (msgId: string, endpointId: string) => {
     setSelectedAttempt({ msgId, endpointId });
     setShowResendModal(true);
+  };
+
+  const handleBulkResend = async () => {
+    setBulkResending(true);
+    
+    try {
+      const result = await bulkResendFailedAttempts(appId, endpointId, startDate, endDate);
+      
+      if (result.success) {
+        setShowBulkResendModal(false);
+        // Refresh the attempts to show updated data
+        const attemptsResult = await fetchMessageAttempts(
+          endpointId, 
+          appId, 
+          statusFilter, 
+          undefined,
+          startDate,
+          endDate
+        );
+        if (!attemptsResult.error) {
+          setAttempts(attemptsResult.data);
+          setAttemptsIterator(attemptsResult.iterator);
+          setHasMoreAttempts(!attemptsResult.done && attemptsResult.data.length > 0);
+        }
+      } else {
+        setError(result.error || 'Failed to bulk resend failed attempts');
+      }
+    } catch (err) {
+      setError('Failed to bulk resend failed attempts');
+      console.error('Error bulk resending:', err);
+    } finally {
+      setBulkResending(false);
+    }
+  };
+
+  const showBulkResendConfirmation = () => {
+    setShowBulkResendModal(true);
   };
 
   const toggleAttemptExpansion = (attemptId: string) => {
@@ -414,13 +557,25 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
         <h1 className="text-2xl font-semibold tracking-tight">
           {getPageTitle()} ({attempts.length})
         </h1>
-        <Button 
-          variant="outline" 
-          onClick={handleRefresh}
-          disabled={loading}
-        >
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {statusFilter === 'failed'&& (
+            <Button 
+              variant="outline"
+              onClick={showBulkResendConfirmation}
+              disabled={bulkResending}
+              className="bg-violet-50 hover:bg-violet-100 text-violet-700 hover:text-violet-800 border-violet-200"
+            >
+              {bulkResending ? 'Resending All...' : 'Resend All'}
+            </Button>
+          )}
+          <Button 
+            variant="outline" 
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </div>
       </div>
       
       <DateTimeRangePicker
@@ -428,6 +583,41 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
         initialDateFrom={startDate}
         initialDateTo={endDate}
       />
+
+      {/* Stats Section - Only show for "All Attempts" */}
+      {(!statusFilter || (statusFilter !== 'success' && statusFilter !== 'failed')) && (
+        <div className="bg-white p-4 rounded-lg border">
+          <h2 className="text-lg font-semibold mb-3">Endpoint Stats</h2>
+          {statsLoading ? (
+            <div className="text-center py-4 text-gray-500">Loading stats...</div>
+          ) : statsError ? (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-600 text-sm">{statsError}</p>
+            </div>
+          ) : stats ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-green-50 p-3 rounded-md border border-green-200">
+                <div className="text-xs text-green-600 font-medium">Success</div>
+                <div className="text-2xl font-bold text-green-700">{stats.success || 0}</div>
+              </div>
+              <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+                <div className="text-xs text-blue-600 font-medium">Pending</div>
+                <div className="text-2xl font-bold text-blue-700">{stats.pending || 0}</div>
+              </div>
+              <div className="bg-red-50 p-3 rounded-md border border-red-200">
+                <div className="text-xs text-red-600 font-medium">Failed</div>
+                <div className="text-2xl font-bold text-red-700">{stats.fail || 0}</div>
+              </div>
+              <div className="bg-yellow-50 p-3 rounded-md border border-yellow-200">
+                <div className="text-xs text-yellow-600 font-medium">Sending</div>
+                <div className="text-2xl font-bold text-yellow-700">{stats.sending || 0}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4 text-gray-500">No stats available</div>
+          )}
+        </div>
+      )}
 
       <div className="space-y-4">
         {attempts.length === 0 ? (
@@ -550,6 +740,48 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
                 disabled={selectedAttempt ? resendingAttempts.has(`${selectedAttempt.msgId}-${selectedAttempt.endpointId}`) : false}
               >
                 {selectedAttempt && resendingAttempts.has(`${selectedAttempt.msgId}-${selectedAttempt.endpointId}`) ? 'Resending...' : 'Resend Message'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Resend Confirmation Modal */}
+      {showBulkResendModal && (
+        <div 
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setShowBulkResendModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-4">Confirm Bulk Resend</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to resend <strong>all failed attempts</strong> for this endpoint in the selected date range?
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-6">
+              <p className="text-yellow-800 text-sm">
+                <strong>Date Range:</strong> {formatTimestamp(startDate.toISOString())} - {formatTimestamp(endDate.toISOString())}
+              </p>
+              <p className="text-yellow-700 text-sm mt-1">
+                This action will attempt to resend all failed messages to this endpoint within this time period.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowBulkResendModal(false)}
+                disabled={bulkResending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkResend}
+                disabled={bulkResending}
+                className="bg-violet-600 hover:bg-violet-700 text-white"
+              >
+                {bulkResending ? 'Resending All...' : 'Resend All Failed'}
               </Button>
             </div>
           </div>

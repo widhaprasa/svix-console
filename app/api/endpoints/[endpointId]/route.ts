@@ -46,9 +46,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     let headers = null;
 
     try {
-      const headersUrl = `http://dev.iotera.biz.id:48071/api/v1/app/${appId}/endpoint/${endpointId}/headers`;
+      const headersUrl = new URL(`/api/v1/app/${appId}/endpoint/${endpointId}/headers`, config.svixApiUrl);
       
-      const headersResponse = await fetch(headersUrl, {
+      const headersResponse = await fetch(headersUrl.toString(), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${config.svixApiToken}`,

@@ -268,7 +268,7 @@ export function EndpointDetail({ endpointId, appId, onClose }: EndpointDetailPro
       {/* Headers Section */}
       {headers && (
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Headers ({Object.keys(headers).length || 0})</h3>
+          <h3 className="text-lg font-medium">Headers</h3>
           <div className="bg-gray-50 p-4 rounded-md space-y-3">
             <div>
               <span className="font-medium">Header:</span>
@@ -292,19 +292,19 @@ export function EndpointDetail({ endpointId, appId, onClose }: EndpointDetailPro
         <div className="bg-gray-50 p-4 rounded-md">
           <div className="flex gap-4 flex-wrap">
             <Button
-              onClick={() => window.open(`/attempts?endpointId=${endpointId}&appId=${appId}`, '_blank')}
+              onClick={() => window.location.href = `/attempts?endpointId=${endpointId}&appId=${appId}`}
             >
               View All Attempts
             </Button>
             <Button
               variant="outline"
-              onClick={() => window.open(`/attempts?endpointId=${endpointId}&appId=${appId}&status=success`, '_blank')}
+              onClick={() => window.location.href = `/attempts?endpointId=${endpointId}&appId=${appId}&status=success`}
             >
               View Success Attempts
             </Button>
             <Button
               variant="outline"
-              onClick={() => window.open(`/attempts?endpointId=${endpointId}&appId=${appId}&status=failed`, '_blank')}
+              onClick={() => window.location.href = `/attempts?endpointId=${endpointId}&appId=${appId}&status=failed`}
             >
               View Failed Attempts
             </Button>
