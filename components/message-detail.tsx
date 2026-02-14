@@ -117,7 +117,6 @@ async function resendMessage(msgId: string, appId: string, endpointId: string): 
       },
       body: JSON.stringify({ appId, endpointId }),
     });
-    console.log('Resend response status:', response.status);
 
     if (!response.ok) {
       throw new Error(`API error: ${response.statusText}`);
@@ -537,10 +536,10 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
 
       {/* Attempts Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">Delivery Attempts ({attempts.length})</h3>
+        <h3 className="text-lg font-medium">Attempts ({attempts.length})</h3>
         {attempts.length === 0 ? (
           <div className="text-center py-4 text-gray-500">
-            No delivery attempts found
+            No attempts found
           </div>
         ) : (
           <div className="space-y-2">
@@ -633,7 +632,7 @@ export function MessageDetail({ msgId, appId, onClose }: MessageDetailProps) {
           >
             <h3 className="text-lg font-semibold mb-4">Confirm Resend</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to resend this message to this endpoint? This will trigger a new delivery attempt.
+              Are you sure you want to resend this message to this endpoint? This will trigger a new attempt.
             </p>
             <div className="flex gap-3 justify-end">
               <Button

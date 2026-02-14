@@ -1,7 +1,5 @@
-import { NextResponse } from 'next/server';
-
-const SVIX_API_URL = process.env.SVIX_API_URL;
-const SVIX_API_TOKEN = process.env.SVIX_API_TOKEN;
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, createUnauthorizedResponse } from '../../../../../lib/auth';
 
 interface ResendRouteContext {
   params: Promise<{
@@ -9,8 +7,16 @@ interface ResendRouteContext {
   }>;
 }
 
-export async function POST(request: Request, context: ResendRouteContext) {
+export async function POST(request: NextRequest, context: ResendRouteContext) {
   try {
+    // Check authentication and get config
+    const authResult = requireAuth(request);
+    if (!authResult) {
+      return createUnauthorizedResponse();
+    }
+
+    const { config } = authResult;
+    
     const { messageId } = await context.params;
     const body = await request.json();
     const { appId, endpointId } = body;
@@ -28,11 +34,11 @@ export async function POST(request: Request, context: ResendRouteContext) {
     }
 
     // Call Svix API to resend the message to specific endpoint
-    const resendUrl = `${SVIX_API_URL}/api/v1/app/${appId}/msg/${messageId}/endpoint/${endpointId}/resend`;
+    const resendUrl = `${config.svixApiUrl}/api/v1/app/${appId}/msg/${messageId}/endpoint/${endpointId}/resend`;
     const resendResponse = await fetch(resendUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${SVIX_API_TOKEN}`,
+        'Authorization': `Bearer ${config.svixApiToken}`,
         'Content-Type': 'application/json',
       },
     });

@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ApplicationRow } from "./application-row";
+import { Input } from "./ui/input";
 
 type Application = {
   uid: string;
@@ -102,12 +103,12 @@ export function ApplicationsList({ applications: initialApplications }: Applicat
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold tracking-tight">Applications</h1>
         <div className="flex items-center space-x-2">
-          <input
+          <Input
             type="text"
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full"
           />
         </div>
       </div>

@@ -30,6 +30,10 @@ export function EndpointActions({ endpointId, applicationId }: EndpointActionsPr
     router.push(`/attempts?endpointId=${endpointId}&appId=${applicationId}&status=failed`);
   };
 
+  const handleDetail = () => {
+    router.push(`/endpoints/${endpointId}?appId=${applicationId}`);
+  };
+
   const handleDropdownClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click when dropdown is clicked
   };
@@ -56,6 +60,9 @@ export function EndpointActions({ endpointId, applicationId }: EndpointActionsPr
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleFailedAttempts}>
             Failed Attempts
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDetail}>
+            Detail
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

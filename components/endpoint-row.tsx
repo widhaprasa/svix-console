@@ -4,6 +4,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { EndpointActions } from "./endpoint-actions";
 import { Badge } from "@/components/ui/badge";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 type Endpoint = {
   id: string;
@@ -25,11 +26,13 @@ interface EndpointRowProps {
 
 export function EndpointRow({ endpoint }: EndpointRowProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const applicationId = searchParams.get('appId');
   
   const handleRowClick = () => {
-    console.log('Endpoint clicked:', endpoint.id);
-    // Add endpoint-specific click logic here
+    if (applicationId) {
+      router.push(`/endpoints/${endpoint.id}?appId=${applicationId}`);
+    }
   };
 
   return (
@@ -40,7 +43,7 @@ export function EndpointRow({ endpoint }: EndpointRowProps) {
     >
       <TableCell className="text-sm">
         <div className="space-y-1">
-          <div className="text-base font-semibold text-blue-700 hover:text-blue-800 font-mono break-all" title={endpoint.url}>
+          <div className="text-sm font-semibold text-gray-900 font-mono break-all" title={endpoint.url}>
             {endpoint.url}
           </div>
           {endpoint.description && (

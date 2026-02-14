@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EndpointRow } from "./endpoint-row";
+import { Input } from "./ui/input";
 
 type Endpoint = {
   id: string;
@@ -112,12 +113,12 @@ export function EndpointsList({ appId, endpoints: initialEndpoints }: EndpointsL
           Endpoints
         </h1>
         <div className="flex items-center space-x-2">
-          <input
+          <Input
             type="text"
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full"
           />
         </div>
       </div>

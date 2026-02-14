@@ -1,10 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, createUnauthorizedResponse } from '../../../lib/auth';
 
-const SVIX_API_URL = process.env.SVIX_API_URL;
-const SVIX_API_TOKEN = process.env.SVIX_API_TOKEN;
-
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    // Check authentication and get config
+    const authResult = requireAuth(request);
+    if (!authResult) {
+      return createUnauthorizedResponse();
+    }
+
+    const { config } = authResult;
+    
     const { searchParams } = new URL(request.url);
     const appId = searchParams.get('appId');
     const startDate = searchParams.get('startDate');
@@ -16,7 +22,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Application Id is required' }, { status: 400 });
     }
 
-    const url = new URL(`/api/v1/app/${appId}/msg`, SVIX_API_URL!);
+    const url = new URL(`/api/v1/app/${appId}/msg`, config.svixApiUrl);
     url.searchParams.append('limit', limit);
     
     if (iterator) {
@@ -34,7 +40,7 @@ export async function GET(request: Request) {
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${SVIX_API_TOKEN}`,
+        'Authorization': `Bearer ${config.svixApiToken}`,
       },
       cache: 'no-store',
     });

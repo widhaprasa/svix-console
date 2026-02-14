@@ -1,16 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, createUnauthorizedResponse } from '../../../lib/auth';
 
-const SVIX_API_URL = process.env.SVIX_API_URL;
-const SVIX_API_TOKEN = process.env.SVIX_API_TOKEN;
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Check authentication and get config
+    const authResult = requireAuth(request);
+    if (!authResult) {
+      return createUnauthorizedResponse();
+    }
+
+    const { config } = authResult;
+    
     const allApplications: any[] = [];
     let iterator: string | undefined;
     let done = false;
 
     while (!done) {
-      const url = new URL('/api/v1/app', SVIX_API_URL!);
+      const url = new URL('/api/v1/app', config.svixApiUrl);
       url.searchParams.append('limit', '250');
       
       if (iterator) {
@@ -20,7 +26,7 @@ export async function GET() {
       const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${SVIX_API_TOKEN}`,
+          'Authorization': `Bearer ${config.svixApiToken}`,
         },
         cache: 'no-store',
       });

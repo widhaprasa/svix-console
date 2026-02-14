@@ -1,7 +1,5 @@
-import { NextResponse } from 'next/server';
-
-const SVIX_API_URL = process.env.SVIX_API_URL;
-const SVIX_API_TOKEN = process.env.SVIX_API_TOKEN;
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, createUnauthorizedResponse } from '../../../../../lib/auth';
 
 interface MessageAttemptsRouteContext {
   params: Promise<{
@@ -9,8 +7,16 @@ interface MessageAttemptsRouteContext {
   }>;
 }
 
-export async function GET(request: Request, context: MessageAttemptsRouteContext) {
+export async function GET(request: NextRequest, context: MessageAttemptsRouteContext) {
   try {
+    // Check authentication and get config
+    const authResult = requireAuth(request);
+    if (!authResult) {
+      return createUnauthorizedResponse();
+    }
+
+    const { config } = authResult;
+    
     const { messageId } = await context.params;
     const { searchParams } = new URL(request.url);
     const appId = searchParams.get('appId');
@@ -26,7 +32,7 @@ export async function GET(request: Request, context: MessageAttemptsRouteContext
     }
 
     // Fetch message attempts
-    const url = new URL(`/api/v1/app/${appId}/attempt/msg/${messageId}`, SVIX_API_URL!);
+    const url = new URL(`/api/v1/app/${appId}/attempt/msg/${messageId}`, config.svixApiUrl);
     url.searchParams.append('limit', limit);
     
     if (iterator) {
@@ -36,7 +42,7 @@ export async function GET(request: Request, context: MessageAttemptsRouteContext
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${SVIX_API_TOKEN}`,
+        'Authorization': `Bearer ${config.svixApiToken}`,
       },
       cache: 'no-store',
     });

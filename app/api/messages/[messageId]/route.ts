@@ -1,7 +1,5 @@
-import { NextResponse } from 'next/server';
-
-const SVIX_API_URL = process.env.SVIX_API_URL;
-const SVIX_API_TOKEN = process.env.SVIX_API_TOKEN;
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, createUnauthorizedResponse } from '../../../../lib/auth';
 
 interface MessageDetailRouteContext {
   params: Promise<{
@@ -9,8 +7,16 @@ interface MessageDetailRouteContext {
   }>;
 }
 
-export async function GET(request: Request, context: MessageDetailRouteContext) {
+export async function GET(request: NextRequest, context: MessageDetailRouteContext) {
   try {
+    // Check authentication and get config
+    const authResult = requireAuth(request);
+    if (!authResult) {
+      return createUnauthorizedResponse();
+    }
+
+    const { config } = authResult;
+    
     const { messageId } = await context.params;
     const { searchParams } = new URL(request.url);
     const appId = searchParams.get('appId');
@@ -24,11 +30,11 @@ export async function GET(request: Request, context: MessageDetailRouteContext) 
     }
 
     // Fetch message details
-    const messageUrl = `${SVIX_API_URL}/api/v1/app/${appId}/msg/${messageId}`;
+    const messageUrl = `${config.svixApiUrl}/api/v1/app/${appId}/msg/${messageId}`;
     const messageResponse = await fetch(messageUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${SVIX_API_TOKEN}`,
+        'Authorization': `Bearer ${config.svixApiToken}`,
       },
       cache: 'no-store',
     });
@@ -48,11 +54,11 @@ export async function GET(request: Request, context: MessageDetailRouteContext) 
     const messageData = await messageResponse.json();
 
     // Fetch message attempts
-    const attemptsUrl = `${SVIX_API_URL}/api/v1/app/${appId}/attempt/msg/${messageId}`;
+    const attemptsUrl = `${config.svixApiUrl}/api/v1/app/${appId}/attempt/msg/${messageId}`;
     const attemptsResponse = await fetch(attemptsUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${SVIX_API_TOKEN}`,
+        'Authorization': `Bearer ${config.svixApiToken}`,
       },
       cache: 'no-store',
     });
