@@ -641,7 +641,7 @@ export function EndpointAttemptList({ endpointId, appId, statusFilter }: Endpoin
                         {attempt.responseStatusCode}
                       </span>
                       <span className="text-xs text-gray-600">{formatTriggerType(attempt.triggerType)}</span>
-                      {attempt.responseDurationMs && (
+                      {attempt.responseDurationMs != null && (
                         <span className="text-xs text-gray-600">
                           {attempt.responseDurationMs}ms
                         </span>
